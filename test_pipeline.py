@@ -39,3 +39,14 @@ def test_evaluate_model():
     score = evaluate_model(model, X_scaled[:1000])
     assert isinstance(score, float)
     assert -1.0 <= score <= 1.0
+
+
+def test_predict_clusters():
+    X_scaled, _ = prepare_data("adult.data")
+    model = train_model(X_scaled, n_clusters=4)
+
+    sample = X_scaled[:20]
+    predictions = model.predict(sample)
+
+    assert predictions.shape == (20,)
+    assert set(np.unique(predictions)).issubset({0, 1, 2, 3})
