@@ -1,7 +1,13 @@
 import numpy as np
 from sklearn.cluster import KMeans
 
-from model_pipeline import load_model, prepare_data, save_model, train_model
+from model_pipeline import (
+    evaluate_model,
+    load_model,
+    prepare_data,
+    save_model,
+    train_model,
+)
 
 
 def test_prepare_and_train_kmeans():
@@ -25,3 +31,11 @@ def test_save_and_load_joblib(tmp_path):
     loaded = load_model(str(model_file))
     assert isinstance(loaded, KMeans)
     assert loaded.n_clusters == 4
+
+
+def test_evaluate_model():
+    X_scaled, _ = prepare_data("adult.data")
+    model = train_model(X_scaled, n_clusters=4)
+    score = evaluate_model(model, X_scaled[:1000])
+    assert isinstance(score, float)
+    assert -1.0 <= score <= 1.0
