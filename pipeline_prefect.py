@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import sys
+from pathlib import Path
 
 from prefect import flow, task
 from prefect.logging import get_run_logger
@@ -15,6 +16,32 @@ from model_pipeline import (
 
 DATA_PATH = "adult.data"
 MODEL_PATH = "kmeans_model.joblib"
+REPO_URL = "https://github.com/SeifAL111/mlops-prefect-kmeans.git"
+REPO_BRANCH = "master"
+
+
+@task(name="0-fetch-project")
+def task_fetch_project(
+    repo_url: str = REPO_URL,
+    target_dir: str = ".",
+    branch: str = REPO_BRANCH,
+) -> None:
+    """Récupère ou met à jour le projet depuis le dépôt Git distant."""
+    logger = get_run_logger()
+    target = Path(target_dir)
+
+    if (target / ".git").exists():
+        subprocess.run(
+            ["git", "-C", str(target), "pull", "origin", branch],
+            check=True,
+        )
+        logger.info("Dépôt mis à jour (git pull origin %s) dans %s.", branch, target)
+    else:
+        subprocess.run(
+            ["git", "clone", "-b", branch, repo_url, str(target)],
+            check=True,
+        )
+        logger.info("Dépôt cloné depuis %s dans %s.", repo_url, target)
 
 
 @task(name="1-install-dependencies")
@@ -61,9 +88,14 @@ def task_evaluate_model(model, X_processed, sample_size: int = 5000) -> float:
 
 @flow(name="all", log_prints=True)
 def flow_all(
-    file_path: str = DATA_PATH, n_clusters: int = 4, model_path: str = MODEL_PATH
+    file_path: str = DATA_PATH,
+    n_clusters: int = 4,
+    model_path: str = MODEL_PATH,
+    fetch_repo: bool = False,
 ):
-    """Exécute les étapes 2, 3, 4 et 6."""
+    """Exécute la récupération optionnelle puis les étapes 2, 3, 4 et 6."""
+    if fetch_repo:
+        task_fetch_project()
     X_scaled, _ = task_prepare_data(file_path)
     model = task_train_model(X_scaled, n_clusters=n_clusters)
     task_save_model(model, model_path)
